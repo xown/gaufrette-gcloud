@@ -1,0 +1,19 @@
+{
+    "name": "xown/gaufrette-gcloud",
+    "description": "Google cloud storage adapter for gaufrette",
+    "require": {
+        "knplabs/gaufrette": "*",
+        "google/apiclient" : "dev-master",
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Saidul Islam",
+            "email": "saidul.04@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "autoload": {
+        "psr-0": { "Gaufrette\\Adapter\\" : "src/" }
+    }
+}
