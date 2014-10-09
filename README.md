@@ -1,2 +1,2 @@
-Google Cloud Storage adapter for gaufrette
+Google Cloud Storage adapter for Gaufrette
 ==========================================
