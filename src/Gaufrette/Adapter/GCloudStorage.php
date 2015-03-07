@@ -28,7 +28,7 @@ class GCloudStorage implements Adapter,MetadataSupporter
         $this->service = $service;
         $this->bucket  = $bucket;
         $this->options = array_replace_recursive(
-            array('directory' => '', 'create' => false),
+            array('directory' => null, 'create' => false),
             $options
         );
 
@@ -64,6 +64,8 @@ class GCloudStorage implements Adapter,MetadataSupporter
     {
         $this->ensureBucketExists();
 
+        $key = $this->computePath($key);
+
         $url = "https://storage.googleapis.com/{$this->bucket}/$key";
         $request = new \Google_Http_Request($url, 'GET');
         $this->service->getClient()->getAuth()->sign($request);
@@ -77,6 +79,9 @@ class GCloudStorage implements Adapter,MetadataSupporter
      */
     public function rename($sourceKey, $targetKey)
     {
+        $sourceKey = $this->computePath($sourceKey);
+        $targetKey = $this->computePath($targetKey);
+
         $this->ensureBucketExists();
         //TODO: test
         $obj = $this->getObjectData($sourceKey);
@@ -98,11 +103,14 @@ class GCloudStorage implements Adapter,MetadataSupporter
     public function write($key, $content)
     {
         $this->ensureBucketExists();
-
+        $key = $this->computePath($key);
         try {
             $obj = new \Google_Service_Storage_StorageObject();
             $obj->name = $key;
-            $obj->setCacheControl('public, max-age=94608000');
+            if(isset($this->options['cache-control'])) {
+                $obj->setCacheControl($this->options['cache-control']);
+                $obj->setAcl('project-private');
+            }
             $obj->setMetadata($this->getMetadata($key));
 
             $obj = $this->service->objects->insert($this->bucket, $obj, array(
@@ -122,6 +130,7 @@ class GCloudStorage implements Adapter,MetadataSupporter
      */
     public function exists($key)
     {
+        $key = $this->computePath($key);
         $this->ensureBucketExists();
         try {
             $obj = $this->service->objects->get($this->bucket, $key);
@@ -137,6 +146,7 @@ class GCloudStorage implements Adapter,MetadataSupporter
      */
     public function mtime($key)
     {
+        $key = $this->computePath($key);
         $this->ensureBucketExists();
 
         $obj = $this->getObjectData($key);
@@ -174,7 +184,7 @@ class GCloudStorage implements Adapter,MetadataSupporter
     public function delete($key)
     {
         $this->ensureBucketExists();
-
+        $key = $this->computePath($key);
         try {
             $this->lastKey = '';
             $this->lastObj = false;
@@ -191,6 +201,7 @@ class GCloudStorage implements Adapter,MetadataSupporter
      */
     public function isDirectory($key)
     {
+        $key = $this->computePath($key);
         if ($this->exists($key.'/')) {
             return true;
         }
@@ -253,12 +264,12 @@ class GCloudStorage implements Adapter,MetadataSupporter
      */
     private function computePath($key)
     {
-        $directory = null;
+        $directory = $this->options['directory'];
         if (null === $directory || '' === $directory) {
             return $key;
         }
 
-        return sprintf('%s/%s', $directory, $key);
+        return sprintf('%s/%s', trim($directory, '/'), trim($key, '/'));
     }
 
     /**
