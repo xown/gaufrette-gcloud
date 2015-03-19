@@ -104,25 +104,40 @@ class GCloudStorage implements Adapter,MetadataSupporter
     {
         $this->ensureBucketExists();
         $key = $this->computePath($key);
-        try {
-            $obj = new \Google_Service_Storage_StorageObject();
-            $obj->name = $key;
-            if(isset($this->options['cache-control'])) {
-                $obj->setCacheControl($this->options['cache-control']);
-                $obj->setAcl('project-private');
-            }
-            $obj->setMetadata($this->getMetadata($key));
 
-            $obj = $this->service->objects->insert($this->bucket, $obj, array(
+        $obj = new \Google_Service_Storage_StorageObject();
+        $obj->name = $key;
+        if(isset($this->options['cache-control'])) {
+            $obj->setCacheControl($this->options['cache-control']);
+        } else {
+            $obj->setAcl('project-private');
+        }
+
+        $obj->setMetadata($this->getMetadata($key));
+
+
+        $processed = false;
+        $retryCount = 0;
+        while(!$processed) {
+            try {
+                $obj = $this->service->objects->insert($this->bucket, $obj, array(
                     'uploadType' => 'multipart',
                     'data' => $content
                 ));
-            $this->service->objectAccessControls->insert($this->bucket, $key, $this->acl);
+                $this->service->objectAccessControls->insert($this->bucket, $key, $this->acl);
 
-            return $obj->getSize();
-        } catch (\Google_Service_Exception $ex) {
-            return false;
+                $processed = true;
+            } catch (\Google_Service_Exception $gse) {
+                $retryCount++;
+                if ($retryCount > 6 || ($gse->getCode() < 500 && $gse->getCode() > 599)) {
+                    throw $gse; //Rethrow the exception
+                }
+
+                usleep(pow(2, $retryCount) * 500 + rand(1, 1000)); //Backoff on exception
+            }
         }
+
+        return $processed ? $obj->getSize() : false;
     }
 
     /**
