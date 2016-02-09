@@ -3,7 +3,7 @@
     "description": "Google cloud storage adapter for gaufrette",
     "require": {
         "knplabs/gaufrette": "*",
-        "google/apiclient" : "dev-master"
+        "google/apiclient" : "~1.1"
     },
     "license": "MIT",
     "authors": [
