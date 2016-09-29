@@ -113,7 +113,9 @@ class GCloudStorage implements Adapter,MetadataSupporter
             $obj->setAcl('project-private');
         }
 
-        $obj->setMetadata($this->getMetadata($key));
+        $metaData = $this->getMetadata($key);
+        unset($metaData['Content-Type']);
+        $obj->setMetadata($metaData);
 
 
         $processed = false;
@@ -121,7 +123,7 @@ class GCloudStorage implements Adapter,MetadataSupporter
         while(!$processed) {
             try {
                 $obj = $this->service->objects->insert($this->bucket, $obj, array(
-                    'uploadType' => 'multipart',
+                    'uploadType' => 'media',
                     'data' => $content
                 ));
                 $this->service->objectAccessControls->insert($this->bucket, $key, $this->acl);
